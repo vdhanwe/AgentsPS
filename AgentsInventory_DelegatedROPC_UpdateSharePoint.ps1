@@ -232,7 +232,7 @@ function ConvertTo-DateOrNull {
 # App registration used for Microsoft Graph (client credentials flow)
 $graphClientId     = ""
 $graphClientSecret = ""
-$tenantId = "b13b520a-81cd-406c-99f4-b8661531e0f7"
+
 
 # Acquire a Graph token via client credentials (app-only)
 $graphTokenBody = @{
