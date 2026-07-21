@@ -70,16 +70,15 @@ $hasMore = $true
 # ==========================================
 while ($hasMore) {
 
-    Write-Host "Fetching batch... SkipToken: $skipToken"
+    Write-Host "Fetching batch... Skip: $skip"
 
-    # IMPORTANT: inject skipToken dynamically
+    # IMPORTANT: inject skip dynamically
     $body = @"
 {
   `"TableName`": `"PowerPlatformResources`",
   `"Options`": {
     `"Top`": $top,
-    `"Skip`": 0,
-    `"skipToken`": `"$skipToken`"
+    `"Skip`": $skip
   },
   `"Clauses`": [
     {
@@ -123,16 +122,19 @@ while ($hasMore) {
             -Body $body
 
         # Append results
+        $batchCount = 0
         if ($response.data) {
             $allAgents += $response.data
+            $batchCount = @($response.data).Count
         }
 
-        # Handle pagination
-        if ($response.skipToken -and $response.skipToken -ne "") {
-            $skipToken = $response.skipToken
+        # Handle pagination: advance Skip by $top each batch.
+        # Stop when a batch returns fewer than $top records (last page).
+        if ($batchCount -lt $top) {
+            $hasMore = $false
         }
         else {
-            $hasMore = $false
+            $skip += $top
         }
 
     } catch {
