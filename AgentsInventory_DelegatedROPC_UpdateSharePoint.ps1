@@ -5,7 +5,7 @@
 $tenantId    = ""
 $clientId    = ""
 $username    = ""
-$password    = ''
+$password    =''
 
 $scope = "https://api.powerplatform.com/.default"
 $tokenUri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
@@ -285,6 +285,10 @@ for ($start = 0; $start -lt $idList.Count; $start += 1000) {
 
 Write-Host "Resolved $($upnCache.Count) UPN(s)." -ForegroundColor Green
 
+# Batch size controls how many items are sent per server round-trip
+$batchSize = 100
+$batch = New-PnPBatch
+
 $i = 0
 foreach ($agent in $agents) {
     $i++
@@ -360,11 +364,28 @@ foreach ($agent in $agents) {
         }
     }
 
+    # Queue the item into the current batch (sent in bulk, not one-by-one)
+    Add-PnPListItem -List $listName -Values $clean -Batch $batch | Out-Null
+
+    # Flush the batch once it reaches the batch size
+    if (($i % $batchSize) -eq 0) {
+        try {
+            Invoke-PnPBatch -Batch $batch
+            Write-Host "[$i/$total] Uploaded batch (up to $batchSize items)" -ForegroundColor Cyan
+        } catch {
+            Write-Warning "[$i/$total] Batch upload failed: $($_.Exception.Message)"
+        }
+        $batch = New-PnPBatch
+    }
+}
+
+# Flush any remaining items in the final partial batch
+if ($batch.RequestCount -gt 0) {
     try {
-        Add-PnPListItem -List $listName -Values $clean | Out-Null
-        Write-Host "[$i/$total] Added: $($agent.DisplayName)" -ForegroundColor Cyan
+        Invoke-PnPBatch -Batch $batch
+        Write-Host "Uploaded final batch" -ForegroundColor Cyan
     } catch {
-        Write-Warning "[$i/$total] Failed: $($agent.DisplayName) - $($_.Exception.Message)"
+        Write-Warning "Final batch upload failed: $($_.Exception.Message)"
     }
 }
 
