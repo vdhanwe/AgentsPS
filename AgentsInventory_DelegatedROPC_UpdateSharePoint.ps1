@@ -5,7 +5,7 @@
 $tenantId    = ""
 $clientId    = ""
 $username    = ""
-$password    = ""
+$password    = ''
 
 $scope = "https://api.powerplatform.com/.default"
 $tokenUri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
@@ -60,7 +60,7 @@ $headers.Add("Authorization", "Bearer $accessToken")
 # ==========================================
 # PAGINATION VARIABLES
 # ==========================================
-$top = 5
+$top = 10
 $skip = 0          # increment by $top after each batch
 $allAgents = @()
 $hasMore = $true
@@ -231,8 +231,8 @@ function ConvertTo-DateOrNull {
 # ==========================================
 
 # App registration used for Microsoft Graph (client credentials flow)
-$graphClientId     =""
-$graphClientSecret =""
+$graphClientId     = ""
+$graphClientSecret = ""
 $tenantId = ""
 
 # Acquire a Graph token via client credentials (app-only)
@@ -305,11 +305,18 @@ $i = 0
 foreach ($agent in $agents) {
     $i++
 
-    # Resolve people-picker UPNs from the Graph cache (blank if unresolved)
-    $createdByUpn = $null
-    if ($agent.CreatedBy -and $upnCache.ContainsKey($agent.CreatedBy)) { $createdByUpn = $upnCache[$agent.CreatedBy] }
-    $ownerUpn = $null
-    if ($agent.OwnerId -and $upnCache.ContainsKey($agent.OwnerId)) { $ownerUpn = $upnCache[$agent.OwnerId] }
+    # Resolve UPN from the Graph cache; fall back to the raw GUID when not found
+    # (e.g. the user was disabled or removed from the organization)
+    $agentCreatedBy = $agent.CreatedBy
+    if ($agent.CreatedBy -and $upnCache.ContainsKey($agent.CreatedBy)) { $agentCreatedBy = $upnCache[$agent.CreatedBy] }
+    $agentOwner = $agent.OwnerId
+    if ($agent.OwnerId -and $upnCache.ContainsKey($agent.OwnerId)) { $agentOwner = $upnCache[$agent.OwnerId] }
+
+    # People-picker columns: set only when a real UPN was resolved, otherwise blank
+    $agentCreatedByPkr = $null
+    if ($agent.CreatedBy -and $upnCache.ContainsKey($agent.CreatedBy)) { $agentCreatedByPkr = $upnCache[$agent.CreatedBy] }
+    $agentOwnerPkr = $null
+    if ($agent.OwnerId -and $upnCache.ContainsKey($agent.OwnerId)) { $agentOwnerPkr = $upnCache[$agent.OwnerId] }
 
     $values = @{
         "Title"          = $agent.DisplayName
@@ -328,8 +335,10 @@ foreach ($agent in $agents) {
         "Flows"          = $agent.Flows
         "Triggers"       = $agent.Triggers
         "TitleId"        = $agent.TitleId
-        "CreatedBy"      = $createdByUpn
-        "OwnerId"        = $ownerUpn
+        "AgentCreatedBy" = $agentCreatedBy
+        "AgentOwner"     = $agentOwner
+        "AgentCreatedByPkr" = $agentCreatedByPkr
+        "AgentOwnerPkr"     = $agentOwnerPkr
     }
 
     # Numbers: blank or 0 => 0
