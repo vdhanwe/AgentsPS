@@ -5,7 +5,7 @@
 $tenantId    = ""
 $clientId    = ""
 $username    = ""
-$password    =''
+$password    = ""
 
 $scope = "https://api.powerplatform.com/.default"
 $tokenUri = "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token"
@@ -231,8 +231,8 @@ function ConvertTo-DateOrNull {
 # ==========================================
 
 # App registration used for Microsoft Graph (client credentials flow)
-$graphClientId     = ""
-$graphClientSecret = ""
+$graphClientId     =""
+$graphClientSecret =""
 $tenantId = ""
 
 # Acquire a Graph token via client credentials (app-only)
@@ -284,6 +284,18 @@ for ($start = 0; $start -lt $idList.Count; $start += 1000) {
 }
 
 Write-Host "Resolved $($upnCache.Count) UPN(s)." -ForegroundColor Green
+
+# ==========================================
+# LOAD EXISTING ITEMS FOR UPSERT (unique key: AgentId)
+# ==========================================
+Write-Host "Loading existing list items for upsert..." -ForegroundColor Yellow
+$existingByAgentId = New-Object 'System.Collections.Generic.Dictionary[string,int]' ([System.StringComparer]::OrdinalIgnoreCase)
+$existingItems = Get-PnPListItem -List $listName -Fields "Id", "AgentId" -PageSize 5000
+foreach ($it in $existingItems) {
+    $aid = "$($it["AgentId"])".Trim()
+    if ($aid) { $existingByAgentId[$aid] = $it.Id }
+}
+Write-Host "Found $($existingByAgentId.Count) existing item(s)." -ForegroundColor Yellow
 
 # Batch size controls how many items are sent per server round-trip
 $batchSize = 100
@@ -364,8 +376,15 @@ foreach ($agent in $agents) {
         }
     }
 
-    # Queue the item into the current batch (sent in bulk, not one-by-one)
-    Add-PnPListItem -List $listName -Values $clean -Batch $batch | Out-Null
+    # Queue the item into the current batch (sent in bulk, not one-by-one).
+    # Upsert on AgentId: update when it already exists, otherwise add.
+    $agentIdValue = "$($agent.Name)".Trim()
+    if ($agentIdValue -and $existingByAgentId.ContainsKey($agentIdValue)) {
+        Set-PnPListItem -List $listName -Identity $existingByAgentId[$agentIdValue] -Values $clean -Batch $batch | Out-Null
+    }
+    else {
+        Add-PnPListItem -List $listName -Values $clean -Batch $batch | Out-Null
+    }
 
     # Flush the batch once it reaches the batch size
     if (($i % $batchSize) -eq 0) {
