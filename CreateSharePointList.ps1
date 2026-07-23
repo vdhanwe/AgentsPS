@@ -17,6 +17,8 @@ Add-PnPField -List $listName -DisplayName "SchemaName" -InternalName "SchemaName
 Add-PnPField -List $listName -DisplayName "BlueprintId" -InternalName "BlueprintId" -Type Text
 Add-PnPField -List $listName -DisplayName "EntraAgentId" -InternalName "EntraAgentId" -Type Text
 Add-PnPField -List $listName -DisplayName "TitleId" -InternalName "TitleId" -Type Text  
+Add-PnPField -List $listName -DisplayName "AgentCreatedBy" -InternalName "AgentCreatedBy" -Type Text
+Add-PnPField -List $listName -DisplayName "AgentOwner" -InternalName "AgentOwner" -Type Text
 
 # ---------------------------
 # APPLY MAX LENGTH (FIX)
@@ -41,13 +43,15 @@ Set-MaxLength -list $listName -fieldName "EntraAgentId" -length 36
 # DATE
 # ---------------------------
 Add-PnPField -List $listName -DisplayName "CreatedAt" -InternalName "CreatedAt" -Type DateTime
-Add-PnPField -List $listName -DisplayName "LastPublishedAt" -InternalName "LastPublishedAt" -Type DateTime
+Add-PnPField -List $listName -DisplayName "LastPublishedAt" -InternalName "LastPublishedAt" -Type DateTime 
+Add-PnPField -List $listName -DisplayName "LastCertifiedDate" -InternalName "LastCertifiedDate" -Type DateTime
+
 
 # ---------------------------
 # PEOPLE
 # ---------------------------
-Add-PnPField -List $listName -DisplayName "CreatedBy" -InternalName "CreatedBy" -Type User
-Add-PnPField -List $listName -DisplayName "OwnerId" -InternalName "OwnerId" -Type User
+Add-PnPField -List $listName -DisplayName "AgentCreatedByPkr" -InternalName "AgentCreatedByPkr" -Type User
+Add-PnPField -List $listName -DisplayName "AgentOwnerPkr" -InternalName "AgentOwnerPkr" -Type User
 
 # ---------------------------
 # NUMBERS
@@ -84,6 +88,11 @@ Add-PnPField -List $listName -DisplayName "Orchestration" -InternalName "Orchest
 Add-PnPField -List $listName -DisplayName "Authentication" -InternalName "Authentication" -Type Choice `
     -Choices @()
 
+Add-PnPField -List $listName -DisplayName "AgentClassification" -InternalName "AgentClassification" -Type Choice `
+    -Choices @("L1","L2")
+
+Add-PnPField -List $listName -DisplayName "CertificationStatus" -InternalName "CertificationStatus" -Type Choice `
+    -Choices @("Certified","Not Certified","L1 Assistive","L2 Augumented","Deleted")
 
 # ---------------------------
 # YES/NO (Better as Boolean)
@@ -127,9 +136,19 @@ Set-PnPView -List $listName -Identity $view.Id -Fields @(
     "LinkTitle",      # Title column (required internal name)
     "AgentId",
     "CreatedAt",
-    "CreatedBy",
-    "LastPublishedAt"
+    "AgentCreatedBy",
+    "AgentOwner",
+    "AgentCreatedByPkr",
+    "AgentOwnerPkr",
+    "LastPublishedAt",
+    "ViewerUsers",
+    "ViewerGroups",
+    "CertificationStatus",
+    "AgentClassification",
+    "LastCertifiedDate"
 )
 
 Write-Host "✅ List created successfully with correct schema!" -ForegroundColor Green
+
+
 
